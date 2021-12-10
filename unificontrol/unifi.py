@@ -108,9 +108,13 @@ class UnifiClient(metaclass=MetaNameFixer):
 
         if resp.ok:
             response = resp.json()
+            if resp:
+                csrf = resp.headers.get("x-csrf-token")
+                if csrf:
+                    ses.headers.update({"x-csrf-token": csrf})
             if 'meta' in response and response['meta']['rc'] != 'ok':
                 raise UnifiAPIError(response['meta']['msg'])
-            return response['data']
+            return response
         else:
             raise UnifiTransportError("{}: {}".format(resp.status_code, resp.reason))
 
@@ -138,7 +142,7 @@ class UnifiClient(metaclass=MetaNameFixer):
 
     _login = UnifiAPICallNoSite(
         "raw login command",
-        "login",
+        "auth/login",
         json_args=["username", "password"],
         need_login=False)
 
@@ -157,7 +161,7 @@ class UnifiClient(metaclass=MetaNameFixer):
 
     logout = UnifiAPICallNoSite(
         "Log out from Unifi controller",
-        "logout",
+        "auth/logout",
         need_login=False)
 
     # Functions for dealing with guest and client devices
@@ -283,7 +287,7 @@ class UnifiClient(metaclass=MetaNameFixer):
             user_id (str): ``_id`` value of the user for which the name is set
             name (str): name to attach, or None to remove name
         """,
-        "upd/user",
+        "rest/user",
         path_arg_name="user_id",
         path_arg_optional=False,
         json_args=["name"],

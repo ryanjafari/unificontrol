@@ -9,27 +9,39 @@ import hashlib
 import os
 
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.poolmanager import PoolManager
+from urllib3.poolmanager import PoolManager
 
 
 BEGIN_CERT = '-----BEGIN CERTIFICATE-----'
 END_CERT = '-----END CERTIFICATE-----'
+
+textchars = bytearray(
+    {7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
+is_binary_string = lambda bytes: bool(bytes.translate(None, textchars))
 
 # Simple conversions between PEM and DER format
 def _PEM_to_DER(cert_pem):
     return base64.b64decode(cert_pem.split("-----")[2].strip())
 
 def _cert_as_DER(cert):
-    return _PEM_to_DER(cert) if "-----" in cert else cert
+    if not is_binary_string(cert):
+        if type(cert) is bytes:
+            cert = cert.decode("utf-8")
+    cert = _PEM_to_DER(cert)
+    return cert
 
 def _DER_to_PEM(cert_der):
     b64 = base64.b64encode(cert_der).decode("ASCII")
-    chunks = [b64[i:i+64] for i in range(0, len(b64), 64)]
+    chunks = [b64[i:i + 64] for i in range(0, len(b64), 64)]
     chunks = [BEGIN_CERT] + chunks + [END_CERT, ""]
     return '\n'.join(chunks)
 
 def _cert_as_PEM(cert):
-    return _DER_to_PEM(cert) if "-----" not in cert else cert
+    if is_binary_string(cert):
+        cert = _DER_to_PEM(cert)
+    elif type(cert) is bytes:
+        cert = cert.decode("utf-8")
+    return cert
 
 def _cert_fingerprint(cert):
     """Returns the hex string of the cert fingerprint"""
